@@ -21,3 +21,5 @@ Press the "Down" key to stop running
 Press "o" to set your own health to 1
 Press "S" to skip to the end of any level
 During the boss fight, press "J" to lower Bowsers health to 1
+
+Link to video: https://www.youtube.com/watch?v=43Ctc7EtG9c&ab_channel=AdeyemiUthman
