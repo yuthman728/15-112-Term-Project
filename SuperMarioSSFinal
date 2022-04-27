@@ -1,0 +1,1846 @@
+#################################################################
+# 15-112: Final Term Project
+# name: Adeyemi Uthman
+# andrewID: authman
+# Topic: Super Mario Side Scroller Game
+#################################################################
+
+import random
+import pygame
+import math
+from cmu_112_graphics import *
+
+####################################
+# Start Screen Mode
+####################################
+def startScreenMode_redrawAll(app,canvas):
+    #Image links are provided in app started
+    canvas.create_image(app.width/2,app.height/2,image=ImageTk.PhotoImage(app.startScreen))
+    canvas.create_rectangle(app.width/2 - 200, 350, app.width/2 + 200, 450, fill = 'Purple')
+    canvas.create_rectangle(app.width/2 - 200, 550, app.width/2 + 200, 650, fill = 'Purple')
+    canvas.create_text(app.width/2, 400, text = "Press 'Return' To Start Game", fill = 'white', font = 'Comic 26 bold')
+    canvas.create_text(app.width/2, 600, text = "Press 'R' To See The Rules ", fill = 'white', font = 'Comic 26 bold')
+    canvas.create_text(app.width - 140, 30, text = "Image drawn by Adeola Uthman", fill = 'Black', font = 'Comic 16 bold')
+    
+def startScreenMode_keyPressed(app, event):
+    if event.key == "Enter":
+        appStarted(app)
+        app.mode = 'gameMode'
+    if event.key == "r":
+        app.mode = 'rulesMode'
+
+def startScreenMode_timerFired(app):
+    #Start Music was obtained from: https://downloads.khinsider.com/game-soundtracks/album/super-mario-bros/17%2520-%2520Ending%2520-%2520Super%2520Mario%2520Bros%25202%2520%2528FDS%2529.mp3
+    if app.StartSoundTimer == 0:
+        app.StartScreenSound = Sound("StartScreenSound.mp3")
+        app.StartScreenSound.start()
+        app.StartSoundTimer += 1
+    else:
+        pass
+
+####################################
+# Rules Screen Mode
+####################################
+
+def rulesMode_redrawAll(app,canvas):
+    canvas.create_image(0,0,image=ImageTk.PhotoImage(app.rulesBackground))
+    canvas.create_text(app.width/2, 200, text = "This game currently has 1 normal level, and 1 boss level. Once you beat the normal level, you will be taken into the boss level", fill = 'black', font = "Comic 19 bold")
+    canvas.create_text(app.width/2, 250, text = "The only controls for this game are inputs from arrow keys (left, right, and up) and when asked, 'r' to restart the game", fill = 'black', font = "Comic 19 bold")
+    canvas.create_text(app.width/2, 300, text = "Bowser will lose energy each time he uses his fireball attack, outlast him to win!", fill = 'black', font = "Comic 19 bold")
+    canvas.create_text(app.width - 150, app.height / 2 + 100, text = "Press 'Space' To Return", fill = 'black', font = "Comic 19 bold")
+
+def rulesMode_keyPressed(app, event):
+    if event.key == "Space":
+        app.mode = 'startScreenMode'
+
+####################################
+# Game Over Screen Mode
+####################################
+
+def gameOver_redrawAll(app,canvas):
+    canvas.create_rectangle(0,0,app.width,app.height, fill = 'black')
+    canvas.create_image(app.width/2, app.height/2, image=ImageTk.PhotoImage(app.gameOverScreen))
+    canvas.create_text(app.width/2, app.height/2, text=f'Score = {app.totalScore}',
+                    fill='White', font = 'Comic 28 bold')
+    canvas.create_text(app.width/2, 500, text="Press 'R' To Return To Main Menu",
+                    fill='White', font = 'Comic 28 bold')
+
+def gameOver_keyPressed(app, event):
+    if event.key == "r":
+        pygame.mixer.Channel(1).stop()
+        app.mode = 'startScreenMode'
+        app.CharacterLives = 100
+        app.scrollX = 0
+        app.totalScore = 0
+        random.seed(random.randint(0,10000))
+
+def gameOver_timerFired(app):
+    pygame.mixer.Channel(1).stop()
+    #Game Over Music was obtained from: https://downloads.khinsider.com/game-soundtracks/album/super-mario-bros/16%2520-%2520Game%2520Over.mp3
+    if app.GameOverTimer == 0:
+        app.GameOverSound = Sound("GameOver.mp3")
+        app.GameOverSound.start(loops = 1)
+        app.GameOverTimer += 1
+    else:
+        pass
+
+####################################
+# Game Won Screen Mode
+####################################
+def gameWon_timerFired(app):
+    pygame.mixer.Channel(1).stop()
+    #Game Won Music was obtained from: https://downloads.khinsider.com/game-soundtracks/album/super-mario-bros/12%2520-%2520World%2520Clear.mp3 
+    if app.GameWonTimer == 0:
+        app.GameWonSound = Sound("GameWon.mp3")
+        app.GameWonSound.start(loops = 1)
+        app.GameWonTimer += 1
+    else:
+        pass
+    
+def gameWon_keyPressed(app,event):
+    if event.key == "r":
+        app.GameWonSound.stop()
+        pygame.mixer.Channel(1).stop()
+        pygame.mixer.Channel(0).stop()
+        app.scrollX, app.scrollY = 0, 0
+        app.isRunning = False
+        app.mode = 'finalLevel'
+
+def gameWon_redrawAll(app,canvas):
+    canvas.create_image(app.width/2, app.height/2,image=ImageTk.PhotoImage(app.winScreen))
+    canvas.create_text(app.width/2, 200, text="YOU WON!",
+                    fill='White', font = 'Comic 48 bold')
+    canvas.create_text(app.width/2, 500, text=f'Score = {app.totalScore}',
+                    fill='White', font = 'Comic 28 bold')
+    canvas.create_text(app.width/2, 600, text="Press 'R' To Go To Boss Level",
+                    fill='White', font = 'Comic 28 bold')
+
+####################################
+# Game Paused Screen Mode
+####################################
+
+def gamePaused_redrawAll(app,canvas):
+    canvas.create_image(app.width/2,app.height/2,image=ImageTk.PhotoImage(app.pauseBackground))
+    canvas.create_rectangle(app.width/2 - 170, app.height/2 - 100, app.width/2 + 170, app.height/2 + 100, fill='black')
+    canvas.create_text(app.width/2, app.height/2 - 60, text="Press 'Return' To Continue The Game",
+                    fill='White', font = 'Comic 16 bold')
+    canvas.create_text(app.width/2, app.height/2, text="Press 'Delete' To Return To Start Menu",
+                    fill='White', font = 'Comic 16 bold')
+    canvas.create_text(app.width/2, app.height/2 + 60, text="Press 'Space' To See The Rules/Controls",
+                    fill='White', font = 'Comic 16 bold')
+
+def gamePaused_keyPressed(app,event):
+    if event.key == "Enter":
+        pygame.mixer.Channel(1).unpause()
+        app.mode = 'gameMode'
+    if event.key == "Delete":
+        pygame.mixer.Channel(1).stop()
+        app.mode = 'startScreenMode'
+    if event.key == "Space":
+        app.mode = 'gameRulesMode'
+
+####################################
+#Rules Mode
+####################################
+
+def gameRulesMode_redrawAll(app,canvas):
+    canvas.create_image(0,0,image=ImageTk.PhotoImage(app.rulesBackground))
+    canvas.create_text(app.width/2, 200, text = "This game currently has 1 normal level, and 1 boss level. Once you beat the normal level, you will be taken into the boss level", fill = 'black', font = "Times 16 bold")
+    canvas.create_text(app.width/2, 300, text = "The only controls for this game are inputs from arrow keys (left, right, and up) and when asked, 'r' to restart the game", fill = 'black', font = "Times 16 bold")
+    canvas.create_text(app.width - 100, app.height / 2 + 100, text = "Press 'Space' To Return", fill = 'black', font = "Times 16 bold")
+
+def gameRulesMode_keyPressed(app,event):
+    if event.key == 'Space':
+        app.mode = 'gamePaused'
+
+####################################
+# Level Clear Screen Mode
+####################################
+
+def LevelClearMode_redrawAll(app,canvas):
+    canvas.create_image(app.width/2,app.height/2,image=ImageTk.PhotoImage(app.GameComplete))
+    canvas.create_rectangle(app.width/2 - 50, 150, app.width/2 + 450, 250, fill = 'Blue')
+    canvas.create_rectangle(app.width/2 - 50, 300, app.width/2 + 450, 400, fill = 'Blue')
+    canvas.create_rectangle(app.width/2 - 50, 450, app.width/2 + 450, 550, fill = 'Blue')
+    canvas.create_text(app.width/2 + 200, 200, text = "YOU WON! CONGRATULATIONS!", fill = 'white', font = 'Comic 26 bold')
+    canvas.create_text(app.width/2 + 200, 500, text = "Press 'R' To Return To Menu", fill = 'white', font = 'Comic 26 bold')
+    if app.totalScore >= app.currentHighScore:
+        canvas.create_text(app.width/2 + 200, 350, text=f"NEW HIGH SCORE!: {app.totalScore}",
+                    fill='White', font = 'Comic 28 bold')
+    else:
+        canvas.create_text(app.width/2 + 200, 350, text = f"Score = {app.totalScore}", fill = 'white', font = 'Comic 26 bold')
+
+def LevelClearMode_timerFired(app):
+    pygame.mixer.Channel(1).stop()
+    pygame.mixer.Channel(0).stop()
+    if app.LevelClearSoundTimer == 0:
+        with open("High Scores.txt", "a+") as f:
+            f.write('\n')
+            f.write(f'{app.totalScore}')
+        app.LevelClearSound = Sound("GameWonSound.mp3")
+        app.LevelClearSound.start()
+        app.LevelClearSoundTimer += 1
+    else:
+        pass
+
+def LevelClearMode_keyPressed(app,event):
+    if event.key == 'r':
+        app.mode = 'startScreenMode'    
+    
+####################################
+# Main App
+####################################
+
+###################################################
+#Create The Classes For the Characters and Enemies
+###################################################
+class Level():
+    def __init__(self, app):
+        self.app = app
+   
+    def drawCloud(app, canvas):
+        for x,y in (app.CloudPositions):
+            canvas.create_image(x - app.scrollX,y, image=ImageTk.PhotoImage(app.Cloud))
+
+    def drawBackground(app, canvas):
+        canvas.create_rectangle(0, 0, app.gameLength + 14400, app.height, fill = 'cyan') #Sky
+        canvas.create_rectangle(0 - app.scrollX, app.height/1.2 + 30, app.gameLength - app.scrollX + 14400, 800, fill = 'green', outline = 'green') #Ground
+        for i in range(len(app.randomGaps)):
+            canvas.create_rectangle(app.randomGaps[i] - app.scrollX, app.height/1.2 + 30, app.randomGaps[i] + 150 - app.scrollX, 800, fill = 'cyan', outline = 'cyan')
+       
+        for i in range(len(app.piranhaPlantPos)):
+            canvas.create_image(app.piranhaPlantPos[i] - app.scrollX, app.height - 50, image=ImageTk.PhotoImage(app.tube))
+
+    def drawBowserBackground(app, canvas):
+        canvas.create_image(app.width/2, app.height/2 + 200, image=ImageTk.PhotoImage(app.bowserBackground))
+        canvas.create_rectangle(0, app.height/1.2 + 30, app.gameLength + 14400, 800, fill = 'gray', outline = 'gray') #Ground
+        canvas.create_rectangle(0, 0, app.gameLength + 14400, 100, fill = 'gray', outline = 'gray') #Ceiling
+        canvas.create_rectangle(0, 0, 60, app.height, fill = 'gray', outline = 'gray') #Left Wall
+        canvas.create_rectangle(app.width - 60, 0, app.width, app.height, fill = 'gray', outline = 'gray') #Right Wall
+       
+    def drawFlag(app, canvas):
+        canvas.create_image(app.gameLength - app.scrollX + 325, app.height/1.2 - 185, image=ImageTk.PhotoImage(app.Flag))
+
+    def drawWinLadder(app, canvas):
+        for y in range(15,0,-1):
+            for x in range(15-y):
+                canvas.create_image(app.gameLength - (x*30) - app.scrollX - 15, app.height/1.2 + 47.5 - (y*30), image=ImageTk.PhotoImage(app.winBlock))
+
+    def drawCastle(app, canvas):
+        canvas.create_image(app.gameLength - app.scrollX + 800, app.height/1.2 - 152, image=ImageTk.PhotoImage(app.Castle))
+
+    def drawRandomPlatforms(app,canvas):
+        for x,y in (app.PlatformPositions):
+            canvas.create_image(x - app.scrollX, y, image=ImageTk.PhotoImage(app.Platform))
+
+    def drawTerrain(app,canvas):
+        size = 50
+        for terrain in app.terrainPositions:
+            x1, x2, height = terrain
+            canvas.create_rectangle(x1 - app.scrollX, app.height/1.2 + 30 - (size*height), x2 - app.scrollX, app.height/1.2 + 30, fill = 'green', outline = 'green')
+
+class CharacterBowser():
+    def __init__(self,url,app):
+        self.image = app.loadImage(url)
+   
+    def drawCharacter(app,canvas):
+        if app.isRunning == False and app.isJumping == False:
+            canvas.create_image(90 + app.scrollX, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.player))
+        elif app.isRunning == False and app.isJumping == True:
+            canvas.create_image(90 + app.scrollX, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump))
+        elif app.isRunning == False and app.isJumping == True:
+            canvas.create_image(90 + app.scrollX, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump2))
+        if app.isRunning == True:
+            if app.isRunningForward == True and app.isJumping == True:
+                canvas.create_image(90 + app.scrollX, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump))
+            elif app.isRunningForward == True and app.isJumping == False:
+                canvas.create_image(90 + app.scrollX, app.height/1.2 + 25 - app.scrollY, image=ImageTk.PhotoImage(app.marioSprites1[app.marioSpriteCounter1]))
+            elif app.isRunningBackwards == True and app.isJumping == True:
+                canvas.create_image(90 + app.scrollX, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump2))
+            elif app.isRunningBackwards == True and app.isJumping == False:
+                canvas.create_image(90 + app.scrollX, app.height/1.2 + 25 - app.scrollY, image=ImageTk.PhotoImage(app.marioSprites2[app.marioSpriteCounter2]))
+
+    def gravity(app):
+        app.scrollY -= 20
+
+    def upwardsVelocity(app):
+        app.scrollY += app.upVelocityDecrease
+        if (app.PlatformHere == True) or (app.GapHere == True) or (app.HillHere == True):
+            app.upVelocityDecrease -= 7.5
+            if app.upVelocityDecrease < 0:
+                app.upVelocityDecrease = 0
+        else:
+            app.upVelocityDecrease -= 5
+            if app.upVelocityDecrease < 0:
+                app.upVelocityDecrease = 0
+
+    def downwardsVelocity(app):
+        app.scrollY -= 20
+   
+    def forwardsVelocity(app):
+        app.isRunningBackwards = False
+        app.isRunningForward = True
+        app.scrollX += 15
+   
+    def backwardsVelocity(app):
+        app.isRunningForward = False
+        app.isRunningBackwards = True
+        app.scrollX -= 15
+       
+
+    def groundCollisions(app):
+        if app.GapHere == False and app.scrollY < 0:
+            app.scrollY = 0
+    
+    def bowserCollisions(app):
+        bowserLocations = Bowser.bowserPositions(app)
+        for i in range(len(bowserLocations)):
+            if abs((bowserLocations[i] - 80)) < 75 and abs(app.BowserHeight[i] - app.currentHeight) < 70:
+                app.CharacterLives -= 1
+    
+    def fireCollision(app):
+        if app.scrollY < 70 and app.currentBowser == 'Left' and app.scrollX + 80 < app.BowserPosition[0] and app.FireChecker == 0 and app.SecondBowserTimer > 30:
+            app.CharacterLives -= 20
+            app.FireChecker += 1
+        elif app.scrollY < 70 and app.currentBowser == 'Right' and app.scrollX + 80 > app.BowserPosition[0] and app.FireChecker == 0 and app.SecondBowserTimer > 30:
+            app.CharacterLives -= 20
+            app.FireChecker += 1
+
+class Character():
+    def __init__(self,url,app):
+        self.image = app.loadImage(url)
+   
+    def drawCharacter(app,canvas):
+        if app.isRunning == False and app.isJumping == False:
+            canvas.create_image(app.width/2, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.player))
+        elif app.isRunning == False and app.isJumping == True:
+            canvas.create_image(app.width/2, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump))
+        elif app.isRunning == False and app.isJumping == True:
+            canvas.create_image(app.width/2, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump2))
+        if app.isRunning == True:
+            if app.isRunningForward == True and app.isJumping == True:
+                canvas.create_image(app.width/2, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump))
+            elif app.isRunningForward == True and app.isJumping == False:
+                canvas.create_image(app.width/2, app.height/1.2 + 25 - app.scrollY, image=ImageTk.PhotoImage(app.marioSprites1[app.marioSpriteCounter1]))
+            elif app.isRunningBackwards == True and app.isJumping == True:
+                canvas.create_image(app.width/2, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump2))
+            elif app.isRunningBackwards == True and app.isJumping == False:
+                canvas.create_image(app.width/2, app.height/1.2 + 25 - app.scrollY, image=ImageTk.PhotoImage(app.marioSprites2[app.marioSpriteCounter2]))
+
+    def gravity(app):
+        app.scrollY -= 20
+
+    def upwardsVelocity(app):
+        app.scrollY += app.upVelocityDecrease
+        if (app.TubeHere == True) or (app.PlatformHere == True) or (app.GapHere == True) or (app.HillHere == True) or (app.WinBlockHere == True):
+            app.upVelocityDecrease -= 7.5
+            if app.upVelocityDecrease < 0:
+                app.upVelocityDecrease = 0
+        else:
+            app.upVelocityDecrease -= 5
+            if app.upVelocityDecrease < 0:
+                app.upVelocityDecrease = 0
+
+    def downwardsVelocity(app):
+        app.scrollY -= 20
+   
+    def forwardsVelocity(app):
+        app.isRunningBackwards = False
+        app.isRunningForward = True
+        app.scrollX += 15
+   
+    def backwardsVelocity(app):
+        app.isRunningForward = False
+        app.isRunningBackwards = True
+        app.scrollX -= 15
+       
+    def gapGravity(app):
+        app.scrollY -= 10
+
+    def hillGravity(app, height):
+        if app.scrollY > height - 400:
+            app.scrollY -= 10
+
+    def winBlockGravity(app, height):
+        if app.scrollY > height:
+            app.scrollY -= 10
+
+    def beginningBoundary(app):
+        if app.scrollX < -550:
+            app.scrollX = -550
+
+    def koopaCollision(app):
+        koopaLocations = Koopa.koopaPositions(app)
+        i = 0
+        for (x) in koopaLocations:
+            if abs((x - 600)) < 50 and app.scrollY < 10:
+                app.CharacterLives -= 1
+            #Guarentees that the collision occurs right above the enemy
+            if abs((x - 600)) < 50 and app.scrollY < 70 and app.scrollY > 10:
+                app.totalScore += 10
+                try:
+                    app.KoopaPositions.pop(i)
+                except:
+                    print( )
+            i += 1
+        i = 0
+
+    def goombaCollision(app):
+        goombaLocations = Goomba.goombaPositions(app)
+        i = 0
+        for (x) in goombaLocations:
+            if abs((x - 600)) < 50 and app.scrollY < 5:
+                app.CharacterLives -= 1
+            #Guarentees that the collision occurs right above the enemy
+            if abs((x - 600)) < 50 and app.scrollY < 20 and app.scrollY > 5:
+                app.totalScore += 10
+                try:
+                    app.GoombaPositions.pop(i)
+                except:
+                    print( )
+            i += 1
+        i = 0
+
+    def piranhaCollision(app):
+        piranhaLocations = PiranhaPlant.piranhaPositions(app)
+        for (x) in piranhaLocations:
+            if abs((x-600)) < 50 and (app.scrollY > 115 and app.scrollY < 250):
+                app.CharacterLives -= 1
+
+    def groundCollisions(app):
+        if app.GapHere == False and app.scrollY < 0:
+            app.scrollY = 0
+       
+    def checkForObjects(self, app):
+    ##Check for Tube
+        for x in app.piranhaPlantPos:
+            if (x - app.scrollX - 683 < 1) and (x - app.scrollX - 683 > - 150):
+                app.TubeHere = True
+                if app.scrollY > 125:
+                    self.gravity(app)
+                #If you walk into a tube, you get moved back to where you were
+                elif app.scrollY < 120 and (x - app.scrollX - 683 < -70):
+                    app.scrollX = x - 683 + 150
+                elif app.scrollY < 120 and (x - app.scrollX - 683 > -70):
+                    app.scrollX = x - 683 + 15
+            
+    ##Check for Platform
+        for x,y in app.PlatformPositions:
+            if (x - app.scrollX - 700 < 120) and (x - app.scrollX - 700 > - 300):
+                app.PlatformHere = True
+                #Apply gravity everywhere outside of the platform
+                if app.currentHeight > (y - 10) or app.currentHeight < (y - 40):
+                    app.PlatformHere = False
+
+    ##Check for Gaps
+        for x in app.randomGaps:
+            if x - app.scrollX - 585 < 10 and x - app.scrollX - 600 > - 140 and app.scrollY < 30:
+                app.GapHere = True
+                app.isRunning = False
+                self.gapGravity(app)
+
+    ##Check for Hills
+        for x1,x2,height in app.terrainPositions:
+            myPosition = app.scrollX + 600
+            if myPosition > x1 and myPosition < x2 and app.scrollY < 200:
+                app.HillHere = True
+                self.hillGravity(app,app.height/1.2 + 30 + (50*height) - 282)
+            if (myPosition > x1 and myPosition < x2):
+                if app.scrollY < (app.height/1.2 + 30 + (50*height) - 280 - 407.5):
+                    if app.currentMario == 'Small_Mario.gif':
+                        app.RightIsPossible = False
+                        app.scrollX = x1 - 600
+                    elif app.currentMario =='Small_Mario2.gif':
+                        app.LeftIsPossible = False
+                        app.scrollX = x2 - 600
+
+    ##Check for win block:
+        if app.scrollX > 8960 + 5000:
+            app.WinBlockHere = True
+            if app.scrollX + 40 >= 14000 and app.scrollX + 40 < 14030:
+                if app.scrollY < 30:
+                    app.scrollX = 14000 - 40
+                self.winBlockGravity(app,30)
+            if app.scrollX + 40 >= 14030 and app.scrollX + 40 < 14060:
+                if app.scrollY < 60:
+                    app.scrollX = 14030 - 40
+                self.winBlockGravity(app,60)
+            if app.scrollX + 40 >= 14060 and app.scrollX + 40 < 14090:
+                if app.scrollY < 90:
+                    app.scrollX = 14060 - 40
+                self.winBlockGravity(app,90)
+            if app.scrollX + 40 >= 14090 and app.scrollX + 40 < 14120:
+                if app.scrollY < 120:
+                    app.scrollX = 14090 - 40
+                self.winBlockGravity(app,120)
+            if app.scrollX + 40 >= 14120 and app.scrollX + 40 < 14150:
+                if app.scrollY < 150:
+                    app.scrollX = 14120 - 40
+                self.winBlockGravity(app,150)
+            if app.scrollX + 40 >= 14150 and app.scrollX + 40 < 14180:
+                if app.scrollY < 180:
+                    app.scrollX = 14150 - 40
+                self.winBlockGravity(app,180)
+            if app.scrollX + 40 >= 14180 and app.scrollX + 40 < 14210:
+                if app.scrollY < 210:
+                    app.scrollX = 14180 - 40
+                self.winBlockGravity(app,210)
+            if app.scrollX + 40 >= 14210 and app.scrollX + 40 < 14240:
+                if app.scrollY < 240:
+                    app.scrollX = 14210 - 40
+                self.winBlockGravity(app,240)
+            if app.scrollX + 40 >= 14240 and app.scrollX + 40 < 14270:
+                if app.scrollY < 270:
+                    app.scrollX = 14240 - 40
+                self.winBlockGravity(app,270)
+            if app.scrollX + 40 >= 14270 and app.scrollX + 40 < 14300:
+                if app.scrollY < 300:
+                    app.scrollX = 14270 - 40
+                self.winBlockGravity(app,300)
+            if app.scrollX + 40 >= 14300 and app.scrollX + 40 < 14330:
+                if app.scrollY < 330:
+                    app.scrollX = 14300 - 40
+                self.winBlockGravity(app,330)
+            if app.scrollX + 40 >= 14330 and app.scrollX + 40 < 14360:
+                if app.scrollY < 360:
+                    app.scrollX = 14330 - 40
+                self.winBlockGravity(app,360)
+            if app.scrollX + 40 >= 14360 and app.scrollX + 40 < 14390:
+                if app.scrollY < 390:
+                    app.scrollX = 14360 - 40
+                self.winBlockGravity(app,390)
+            if app.scrollX + 40 >= 14390 and app.scrollX + 40 < 14420:
+                if app.scrollY < 420:
+                    app.scrollX = 14390 - 40
+                self.winBlockGravity(app,420)
+            if app.scrollX + 40 >= 14420 and app.scrollX + 40 < 14450:
+                if app.scrollY < 420:
+                    app.scrollX = 14420 - 40
+                self.winBlockGravity(app,420)
+            if app.scrollX + 40 > 14450:
+                app.WinBlockHere = False
+
+class Koopa():
+    def __init__(self):
+        self.KoopaPos = 0
+
+    def drawKoopas(self, app, canvas):
+        for i in range(len(app.KoopaPositions)):
+            canvas.create_image(app.KoopaPositions[i] - app.scrollX + app.KoopaPos, app.height/1.2 - 18, image=ImageTk.PhotoImage(app.Koopa))    
+
+    def koopaPositions(app):
+        location = []
+        for x in (app.KoopaPositions):
+            location.append(x - app.scrollX + app.KoopaPos)
+        return location
+
+class PiranhaPlant():
+    def __init__(self, image = ''):
+        pass
+
+    def drawPiranhaPlant(self,app,canvas):
+        for i in range(len(app.piranhaPlantPos)):
+            canvas.create_image(app.piranhaPlantPos[i] - app.scrollX, app.height/1.2 - 150, image=ImageTk.PhotoImage(app.piranhaPlant))
+   
+    def drawNoPiranha(self,app,canvas):
+        for i in range(len(app.piranhaPlantPos)):
+            canvas.create_image(app.piranhaPlantPos[i] - app.scrollX, app.height/1.2 - 150, image=ImageTk.PhotoImage(app.noPiranha))
+           
+    def piranhaPositions(app):
+        location = []
+        for x in app.piranhaPlantPos:
+            location.append((x - app.scrollX))
+        return location
+   
+class Goomba():
+    def __init__(self):
+        pass
+   
+    def drawGoomba(self,app,canvas):
+        for i in range(len(app.GoombaPositions)):
+            canvas.create_image(app.GoombaPositions[i] - app.scrollX + app.GoombaPos, app.GoombaHeights[i], image=ImageTk.PhotoImage(app.Goomba))
+
+    def goombaPositions(app):
+        location = []
+        for x in (app.GoombaPositions):
+            location.append((x - app.scrollX + app.GoombaPos))
+        return location
+
+class Sound(object):
+    def __init__(self, path):
+        self.path = path
+        self.loops = 1
+        pygame.mixer.music.load(path)
+
+    def isPlaying(self):
+        return bool(pygame.mixer.music.get_busy())
+    
+    def start(self, loops=-1):
+        self.loops = loops
+        pygame.mixer.music.play(loops=loops)
+    
+    def stop(self):
+        pygame.mixer.music.stop()
+
+#########################################
+#Run the App
+#########################################
+def appStarted(app):
+    app.StartSoundTimer = 0
+    app.MainGameSoundTimer = 0
+    app.GameOverTimer = 0
+    app.GameWonTimer = 0
+    app.FinalLevelSoundTimer = 0
+    app.LevelClearSoundTimer = 0
+    app.mode = 'startScreenMode'
+    app.gameLength = 15000
+    app.scrollX = 0
+    app.scrollY = 0
+    app.timer = 0
+    app.timerDelay = 1
+    app.totalScore = 0
+    app.terrainPositions = []
+    app.terrainHeight = []
+    app.randHeight = []
+    app.CharacterY = app.width/2 + 30
+    app.CharacterLives = 100
+    app.jumpHeight = 0
+    app.jumpDelay = 0
+    app.fallingDelay = 0
+    app.restrictJump = False
+    app.upVelocityDecrease = 60
+    app.isJumping = False
+    app.isFalling = False
+    app.isRunning = False
+    app.runningModifier = False
+    app.TubeHere = False
+    app.PlatformHere = False
+    app.GapHere = False
+    app.HillHere = False
+    app.WinBlockHere = False
+    app.PiranhaTimer = 0
+    app.PiranhaThere = True
+    app.PiranhaOverride = False
+    app.PiranhaDelay = 0
+    app.piranhaSpriteTimer = 0
+    app.characterSpriteTimer = 0
+    app.marioSpriteCounter = 0
+    app.KoopaOverride = False
+    app.RightIsPossible = True
+    app.LeftIfPossible = True
+    app.GameOver = False
+    app.GameWon = False
+    app.BowserTimer = 0
+    app.SecondBowserTimer = 0
+    app.BowserHealth = 500
+    app.BowserOverride = False
+    app.FireChecker = 0
+    app.PathToMarioX = []
+    app.PathToMarioY = []
+    #StartScreen Image was drawn by Adeola Uthman
+    startScreen = app.loadImage('Start_Screen.png')
+    app.startScreen = app.scaleImage(startScreen, 0.5)
+    #RulesBackground Image was obtained from: https://cutewallpaper.org/21/super-mario-pixel-background/view-page-21.html
+    rulesBackground = app.loadImage('RulesBackground.png')
+    app.rulesBackground = app.scaleImage(rulesBackground,9)
+    #PauseBackground Image was obtained from: https://wallpaper-house.com/wallpaper-id-437863.php
+    pauseBackground = app.loadImage('PauseScreen.png')
+    app.pauseBackground = app.scaleImage(pauseBackground, 1.4)
+    #WinScreen Image was obtained from: https://wallpaper-house.com/wallpaper-id-437863.php
+    winScreen = app.loadImage('WinScreen.jpg')
+    app.winScreen = app.scaleImage(winScreen, 1.3)
+    #GameOverScreen Image was obtainged from: https://www.mariowiki.com/Game_Over#/media/File:Game_Over_2_Paper_Mario.png 
+    gameOverScreen = app.loadImage('GameOver.png')
+    app.gameOverScreen = app.scaleImage(gameOverScreen, 2)
+    #GameCompleteScreen Image was obtainged from: https://wallpaperaccess.com/mario
+    gameComplete = app.loadImage('GameComplete.png')
+    app.GameComplete = app.scaleImage(gameComplete, 1)
+    
+    #Boo Images
+    BooScaredRight = app.loadImage('BooRightScared.png')
+    app.BooScaredRight = app.scaleImage(BooScaredRight,1)
+    BooScaredLeft = app.loadImage('BooLeftScared.png')
+    app.BooScaredLeft = app.scaleImage(BooScaredLeft,1)
+    BooRight = app.loadImage('BooRight.png')
+    app.BooRight = app.scaleImage(BooRight,1)
+    BooLeft = app.loadImage('BooLeft.png')
+    app.BooLeft = app.scaleImage(BooLeft,1)
+
+    ##Finding the Current High Score
+    app.currentHighScore = 0
+    with open("High Scores.txt") as f:
+        for line in f:
+            line.strip()
+            if app.currentHighScore is None or int(line) > app.currentHighScore:
+                app.currentHighScore = int(line)
+    
+    #Music
+    pygame.mixer.init()
+
+    #DungeonBackground Image Obtained from: https://www.spriters-resource.com/fullview/26066/
+    dungeonBackground = app.loadImage('DungeonBackground.png')
+    app.dungeonBackground = app.scaleImage(dungeonBackground, 1.5)
+    lavaCover = app.loadImage('LavaCover.png')
+    app.lavaCover = app.scaleImage(lavaCover, 1/2.35)
+
+    #Bowsers Pipe! Image Obtained from: 
+    bowsersPipe = app.loadImage('BowsersPipe.png')
+    app.BowsersPipe = app.scaleImage(bowsersPipe,1)
+
+    #Bowser Background Image Obtained from: https://www.spriters-resource.com/fullview/26066/
+    bowserBackground = app.loadImage('BowserBackground.png')
+    app.bowserBackground = app.scaleImage(bowserBackground, 1.5)
+
+    #Bowser Health Bar Image Obtained from: https://gamedev.stackexchange.com/questions/51060/why-should-i-choose-to-design-a-health-bar-rather-than-heart-containers
+    fullHealth = app.loadImage('100%.png')
+    app.fullHealth = app.scaleImage(fullHealth, 0.6)
+    NinetyPercent = app.loadImage('90%.png')
+    app.NinetyPercent = app.scaleImage(NinetyPercent, 0.6)
+    EightyPercent = app.loadImage('80%.png')
+    app.EightyPercent = app.scaleImage(EightyPercent, 0.6)
+    SeventyPercent = app.loadImage('70%.png')
+    app.SeventyPercent = app.scaleImage(SeventyPercent, 0.6)
+    SixtyPercent = app.loadImage('60%.png')
+    app.SixtyPercent = app.scaleImage(SixtyPercent, 0.6)
+    FiftyPercent = app.loadImage('50%.png')
+    app.FiftyPercent = app.scaleImage(FiftyPercent, 0.6)
+    FourtyPercent = app.loadImage('40%.png')
+    app.FourtyPercent = app.scaleImage(FourtyPercent, 0.6)
+    ThirtyPercent = app.loadImage('30%.png')
+    app.ThirtyPercent = app.scaleImage(ThirtyPercent, 0.6)
+    TwentyPercent = app.loadImage('20%.png')
+    app.TwentyPercent = app.scaleImage(TwentyPercent, 0.6)
+    TenPercent = app.loadImage('10%.png')
+    app.TenPercent = app.scaleImage(TenPercent, 0.6)
+    ZeroPercent = app.loadImage('0%.png')
+    app.ZeroPercent =  app.scaleImage(ZeroPercent, 0.6)
+
+    ##Enemy: Bowser
+    app.BowserPosition = []
+    app.BowserHeight = []
+    #Fire Image obtained from: https://gamefabrique.com/games/pokemon-crystal-clear/
+    fireImage = app.loadImage('Fire.png')
+    app.Fire = app.scaleImage(fireImage, 1/3)
+    app.BowserFire = []
+    numOfBowsers = 1
+    app.BowserPos = 0
+    app.BowserForward = False
+    for i in range(numOfBowsers):
+    #Image obtained from: https://papermario.fandom.com/wiki/Bowser
+        bowserImg = app.loadImage('BowserLeft.png')
+        app.currentBowser = 'Left'
+        app.Bowser = app.scaleImage(bowserImg, 1/3.7)
+        app.BowserPosition.append(app.width - 180)
+        app.BowserHeight.append(app.height/1.2 - 30)
+
+    ##Enemy: Boo
+    app.BooPositions = []
+    app.BooHeights = []
+    numOfBoos = random.randint(8,10)
+    app.BooPos = 0
+    app.BooForward = True
+    for i in range(numOfBoos):
+    #Image obtained from: https://www.pinterest.co.uk/pin/541135711448214349/
+        booImg = app.loadImage('BooLeft.png')
+        app.Boo = app.scaleImage(booImg, 1)
+        app.BooPositions.append(random.randint(2000,6000))
+        app.BooPositions.append(random.randint(6000,10000))
+        app.BooPositions.append(random.randint(10000,12000))
+        app.BooHeights.append(random.randint(300,600))
+        app.BooHeights.append(random.randint(300,600))
+        app.BooHeights.append(random.randint(300,600))
+
+    ##Enemy: Thwomp
+    app.ThwompPositions = []
+    app.ThwompHeights = []
+    numOfThwomps = random.randint(1,3)
+    app.ThwompPos = 0
+    for i in range(numOfThwomps):
+    #Image obtained from: https://play.nintendo.com/themes/friends/goomba/
+        thwompImg = app.loadImage('Thwomp.png')
+        app.Thwomp = app.scaleImage(thwompImg, 1/1.5)
+        app.ThwompPositions.append(random.randint(1000,2000))
+        app.ThwompPositions.append(random.randint(10000,12000))
+        app.ThwompHeights.append(180)
+        app.ThwompHeights.append(180)
+
+    ##Generating the Terrain
+    terrainPositions = []
+    for x in range(random.randint(1,2)):
+        myVar = False
+        tPositions = None
+        tPositions = terrainGeneration(2000, 5000)
+        for position in terrainPositions:
+            minP, maxP = position
+            minTPos, _, _ = tPositions[0]
+            _, maxTPos, _ = tPositions[-1]
+            if (minTPos > minP and minTPos < maxP) or (maxTPos < maxP and maxTPos > minP):
+                myVar = True
+            while myVar == True:
+                tPositions = terrainGeneration(2000, 5000)
+                minTPos, _, _ = tPositions[0]
+                _, maxTPos, _ = tPositions[-1]
+                if (minTPos < minP and maxTPos < minP) or (minTPos > maxP):
+                    myVar = False
+        minPos, _, _ = tPositions[0]
+        _, maxPos2, _ = tPositions[-1]
+        terrainPositions.append((minPos,maxPos2))
+        for element in tPositions:
+            if element not in app.terrainPositions:
+                app.terrainPositions.append(element)
+    
+    for x in range(random.randint(2,3)):
+        myVar = False
+        tPositions = None
+        tPositions = terrainGeneration(8000, 11000)
+        for position in terrainPositions:
+            minP, maxP = position
+            minTPos, _, _ = tPositions[0]
+            _, maxTPos, _ = tPositions[-1]
+            if (minTPos > minP and minTPos < maxP) or (maxTPos < maxP and maxTPos > minP):
+                myVar = True
+            while myVar == True:
+                tPositions = terrainGeneration(8000, 11000)
+                minTPos, _, _ = tPositions[0]
+                _, maxTPos, _ = tPositions[-1]
+                if (minTPos < minP and maxTPos < minP) or (minTPos > maxP):
+                    myVar = False
+        minPos, _, _ = tPositions[0]
+        _, maxPos2, _ = tPositions[-1]
+        terrainPositions.append((minPos,maxPos2))
+        for element in tPositions:
+            if element not in app.terrainPositions:
+                app.terrainPositions.append(element)
+   
+    ##Main Character: https://mariouniverse.com/wp-content/img/sprites/nes/smb/mario.png
+    app.img = app.loadImage('Small_Mario.gif')
+    app.player = app.scaleImage(app.img, 1/15)
+    app.jumpImg = app.loadImage('Small_MarioJump.png')
+    app.playerJump = app.scaleImage(app.jumpImg, 1)
+    app.jumpImg2 = app.loadImage('Small_MarioJump2.png')
+    app.playerJump2 = app.scaleImage(app.jumpImg2, 1)
+    app.playerTimer = 0
+    
+    marioSpriteStrip1 = app.loadImage('RunningForwards.png')
+    spritePositions1 = [(60,0,85,60),(30,0,55,60),(0,0,25,60)]
+    app.marioSprites1 = [ ]
+    for i in range(3):
+        runningForward = marioSpriteStrip1.crop(spritePositions1[i])
+        runningForwards = app.scaleImage(runningForward, 2)
+        app.marioSprites1.append(runningForwards)
+    app.marioSpriteCounter1 = 0
+
+    marioSpriteStrip2 = app.loadImage('RunningBackwards.png')
+    spritePositions2 = [(0,0,25,60),(30,0,55,60),(60,0,85,60)]
+    app.marioSprites2 = [ ]
+    for i in range(3):
+        runningForward = marioSpriteStrip2.crop(spritePositions2[i])
+        runningFowards = app.scaleImage(runningForward, 2)
+        app.marioSprites2.append(runningFowards)
+    app.marioSpriteCounter2 = 0
+
+    ##Enemy: Koopa
+    app.KoopaPositions = []
+    numOfKoopas = random.randint(1,2)
+    app.KoopaPos = 0
+    app.KoopaForward = True
+    for i in range(numOfKoopas):
+    #Image obtained from: https://www.seekpng.com/ipng/u2t4r5r5i1i1e6e6_koopa-troopa-super-mario-bros-koopa/
+        koopaImg = app.loadImage('Koopa.png')
+        app.Koopa = app.scaleImage(koopaImg, 1/8)
+        app.KoopaPositions.append(random.randint(1000,1900))
+        app.KoopaPositions.append(random.randint(5100,6400))
+        app.KoopaPositions.append(random.randint(9500,11900))
+
+    ##Enemy: Goomba
+    app.GoombaPositions = []
+    app.GoombaHeights = []
+    numOfGoombas = random.randint(1,2)
+    app.GoombaPos = 0
+    app.GoombaForward = True
+    for i in range(numOfGoombas):
+    #Image obtained from: https://play.nintendo.com/themes/friends/goomba/
+        goombaImg = app.loadImage('Goomba.png')
+        app.Goomba = app.scaleImage(goombaImg, 1/2.5)
+        app.GoombaPositions.append(random.randint(1000,1900))
+        app.GoombaPositions.append(random.randint(5400,6400))
+        app.GoombaPositions.append(random.randint(9500,11900))
+        app.GoombaHeights.append(app.height/1.2 + 4)
+        app.GoombaHeights.append(app.height/1.2 + 4)
+        app.GoombaHeights.append(app.height/1.2 + 4)
+
+    ##For Win Block
+    #Image obtained from: https://www.pastemagazine.com/games/the-20-best-2d-mario-levels-of-all-time/?p=2
+    winBlock = app.loadImage('Win_Tile.png')
+    app.winBlock = app.scaleImage(winBlock, 1/3.7)
+
+    ##For Win Flag and Castle
+    #Image obtained from: https://www.pinpng.com/picture/hJbhix_super-mario-castle-super-mario-castle-sprite-hd/
+    castle = app.loadImage('Win_Castle.png')
+    app.Castle = app.scaleImage(castle, 1.5)
+   
+    #Image obtained from: https://mobile.twitter.com/Rock30Games/status/1007295596464615424
+    flag = app.loadImage('Flag.png')
+    app.Flag = app.scaleImage(flag, 0.8)
+
+    ##Draw Platforms
+    app.PlatformPositions = []
+    numOfPlatforms = random.randint(5,9)
+    listOfX1s = []
+    for i in range(numOfPlatforms):
+    #Image obtained from: https://toppng.com/show_download/176007/mario-brick-super-mario-bros-floor/large
+        platform = app.loadImage('Bricks.png')
+        app.Platform = app.scaleImage(platform,2)
+        ##Make sure platofrms do not generate on top of one another
+        y1 = random.randint(300,500)
+        x1 = random.randint(0,app.gameLength - 3000)
+        #Check that for each x1 you generate, it is not within 150 pixels of another x, if so, pick a new position
+        for x in listOfX1s:
+            while abs(x1 - x) < 150:
+                x1 = random.randint(0,app.gameLength)
+        listOfX1s.append(x1)
+        if (x1,y1) not in app.PlatformPositions:
+            app.PlatformPositions.append((x1, y1))
+
+    ##Draw Clouds
+    app.CloudPositions = []
+    numOfCoulds = random.randint(20,30)
+    for i in range(numOfCoulds):
+    #Cloud1 Image was obtained from: https://toppng.com/super-mario-bros-cloud-sprites-super-mario-cloud-PNG-free-PNG-Images_169206
+        cloud = app.loadImage('Cloud1.png')
+        app.Cloud = app.scaleImage(cloud, 1/7.5)
+        app.CloudPositions.append((random.randint(0,app.gameLength), random.randint(0,250)))
+
+    #For Starting the Level and Making Gaps + Piranha Plants
+    app.levelStart = False
+    app.randomGaps = []
+    for i in range(random.randint(2,3)): #Number of gaps you want
+        gapPos = random.randint(6500,8000)
+        if gapPos not in app.randomGaps:
+            app.randomGaps.append(gapPos)
+        gapPos2 = random.randint(11500,13500)
+        if gapPos2 not in app.randomGaps:
+            app.randomGaps.append(gapPos2)
+   
+    ##Drawing the Piranha plant and Tube
+    app.piranhaPlantPos = []
+    #Piranha Plant was obtained from: https://www.pngitem.com/middle/hhTwhxm_piranha-plant-sprite-sheet-hd-png-download/
+    piranhaPlant = app.loadImage('Piranha_Plant_Full.png')
+    noPiranha = app.loadImage('No_Piranha.png')
+    app.noPiranha = app.scaleImage(noPiranha, 1/4)
+    app.piranhaPlant = app.scaleImage(piranhaPlant, 1/4)
+
+    #Tube Image was obtained from: https://www.clipartmax.com/middle/m2i8A0i8N4H7Z5Z5_mario-pipe-pixel-mario-tube-png/
+    tube = app.loadImage('Tube.png')
+    app.tube = app.scaleImage(tube, 1/2)
+
+    for i in range(random.randint(1,3)):
+        plantPos = random.randint(5100, 8000)
+        while plantPos in app.randomGaps:
+            plantPos = random.randint(1000,app.gameLength - 1000)
+        app.piranhaPlantPos.append(plantPos)
+
+def gameMode_keyPressed(app, event):
+    #Left and Right keys change mario's direction and the way he is drawn
+    if (event.key == "Left" and app.LeftIfPossible == True): #This controls how far the player moves on each key press
+        Mario = app.loadImage('Small_Mario2.gif')
+        app.currentMario = 'Small_Mario2.gif'
+        app.player = app.scaleImage(Mario, 1/15)
+        app.isRunning = True
+
+    if (event.key == "Left" and app.LeftIfPossible == False): #This controls how far the player moves on each key press
+        Mario = app.loadImage('Small_Mario2.gif')
+        app.currentMario = 'Small_Mario2.gif'
+        app.player = app.scaleImage(Mario, 1/15)
+        app.scrollX += 0
+
+    if (event.key == "Right" and app.RightIsPossible == True):
+        app.currentMario = 'Small_Mario.gif'
+        Mario = app.loadImage('Small_Mario.gif')
+        app.player = app.scaleImage(Mario, 1/15)
+        app.isRunning = True
+
+    if (event.key == "Right" and app.RightIsPossible == False):
+        app.currentMario = 'Small_Mario.gif'
+        Mario = app.loadImage('Small_Mario.gif')
+        app.player = app.scaleImage(Mario, 1/15)
+        app.scrollX += 0
+
+    if (event.key == "Down"):
+        app.isRunning = False
+        
+    if (event.key == "Up" and app.restrictJump == False and app.isFalling == False):
+        app.isJumping = True
+        #Jump Music was obtained from: https://notification-sounds.com/166-mario-jump-sound.html
+        pygame.mixer.Channel(0).play(pygame.mixer.Sound("Jump.mp3"))
+        pygame.mixer.Channel(0).set_volume(0.2)
+
+    if event.key == 'k':
+        app.scrollX = 13000
+
+    if event.key == "s":
+        app.scrollX = 14500
+    
+    if event.key == 'o':
+        app.CharacterLives = 1
+        
+    if event.key == "p":
+        pygame.mixer.Channel(1).pause()
+        app.mode = 'gamePaused'
+
+    if (event.key == "R"):
+        app.mode = 'startScreenMode'
+
+
+def gameMode_timerFired(app):
+    #Main Game Music was obtained from: https://downloads.khinsider.com/game-soundtracks/album/super-mario-bros
+    if app.MainGameSoundTimer == 0:
+        app.StartScreenSound.stop()
+        pygame.mixer.Channel(1).play(pygame.mixer.Sound("MainTheme.mp3"))
+        app.MainGameSoundTimer += 1
+    else:
+        pass
+
+    app.RightIsPossible = True
+    app.LeftIsPossible = True
+    app.playerTimer += 1
+    app.currentHeight = 680 - app.scrollY
+
+    ##Character Physics
+    if (app.TubeHere == False) and (app.PlatformHere == False) and (app.GapHere == False) and (app.HillHere == False) and (app.WinBlockHere == False):
+        Character.gravity(app)
+    
+    if app.GapHere == True:
+        app.isJumping = False
+
+    #All Jumping Functions
+    if app.isJumping == True:
+        app.restrictJump = True
+    else:
+        app.restrictJump = False
+    if app.isJumping == True:
+        Character.upwardsVelocity(app)
+        app.jumpDelay += 1
+        if app.jumpDelay == 10:
+            app.isJumping = False
+            app.isFalling = True
+            app.jumpDelay = 0
+            app.upVelocityDecrease = 60
+   
+    if app.isFalling == True:
+        app.fallingDelay += 1
+    if app.fallingDelay > 8:
+        app.isFalling = False
+        app.fallingDelay = 0
+
+    #All Running Functions
+    if app.isRunning == True:
+        if app.currentMario == 'Small_Mario.gif':
+            Character.forwardsVelocity(app)
+        if app.currentMario == 'Small_Mario2.gif':
+            Character.backwardsVelocity(app)
+    else:
+        app.isRunningForward = False
+        app.isRunningBackwards = False
+
+    Character.groundCollisions(app)
+    Character.koopaCollision(app)
+    Character.goombaCollision(app)
+    if app.PiranhaThere == True:
+        Character.piranhaCollision(app)
+    Character.beginningBoundary(app)
+    app.TubeHere = False
+    app.PlatformHere = False
+    app.GapHere = False
+    app.HillHere = False
+    app.WinBlockHere = False
+    Character.checkForObjects(Character, app)
+
+    if app.GapHere == False and app.scrollY < 0:
+        app.scrollY = 0
+
+    #Reverses the direction of the koopa while its walking
+    for i in range(len(app.KoopaPositions)):
+        if abs(app.KoopaPositions[i] - 600 - app.scrollX) < 250:
+            if app.KoopaPositions[i] - 600 - app.scrollX < 250 and app.KoopaPositions[i] - 600 - app.scrollX > 0:
+                app.KoopaPositions[i] -= 10
+                koopaImg = app.loadImage('Koopa2.png')
+                app.Koopa = app.scaleImage(koopaImg, 1/9.1)
+            else:
+                app.KoopaPositions[i] += 10
+                koopaImg = app.loadImage('Koopa.png')
+                app.Koopa = app.scaleImage(koopaImg, 1/8)
+        else:   
+            if app.KoopaForward == True:
+                koopaImg = app.loadImage('Koopa.png')
+                app.Koopa = app.scaleImage(koopaImg, 1/8)
+                app.KoopaPos += 3
+                if app.KoopaPos > 99:
+                    app.KoopaForward = False
+
+            elif app.KoopaForward == False:
+                #Koopa2 image is just the reversed version of koopa 1 from the same address
+                koopaImg = app.loadImage('Koopa2.png')
+                app.Koopa = app.scaleImage(koopaImg, 1/9.1)
+                app.KoopaPos -= 3
+                if app.KoopaPos < 0:
+                    app.KoopaForward = True
+
+    for i in range(len(app.GoombaPositions)):
+        if abs(app.GoombaPositions[i] - 600 - app.scrollX) < 150:
+            ##Goomba Jump
+            if app.GoombaHeights[i] >= app.height/1.2 and app.GoombaHeights[i] < app.height/1.2 + 80:
+                app.GoombaHeights[i] -= 40
+            else: 
+                app.GoombaHeights[i] += 40
+
+            ##Goomba Chase    
+            if app.GoombaPositions[i] - 600 - app.scrollX < 150 and app.GoombaPositions[i] - 600 - app.scrollX > 0:
+                goombaImg = app.loadImage('Goomba2.png')
+                app.Goomba = app.scaleImage(goombaImg, 1/2.5)   
+                app.GoombaPositions[i] -= 10
+            else:
+                goombaImg = app.loadImage('Goomba.png')
+                app.Goomba = app.scaleImage(goombaImg, 1/2.5)
+                app.GoombaPositions[i] += 10
+        else:
+            app.GoombaHeights[i] = app.height/1.2 + 12
+            if app.GoombaForward == True:
+                goombaImg = app.loadImage('Goomba2.png')
+                app.Goomba = app.scaleImage(goombaImg, 1/2.5)
+                app.GoombaPos += 5
+                if app.GoombaPos == 150:
+                    app.GoombaForward = False
+
+            elif app.GoombaForward == False:
+            #Goomba2 image is just the reversed version of koopa 1 from the same address
+                goombaImg = app.loadImage('Goomba.png')
+                app.Goomba = app.scaleImage(goombaImg, 1/2.5)
+                app.GoombaPos -= 5
+                if app.GoombaPos == 0:
+                    app.GoombaForward = True
+
+    ##All Piranha Generation Commands
+    for pos in app.piranhaPlantPos:
+        distance = pos - app.scrollX - 600
+        if distance < 150:
+            #Add slight delay to make it possible to get past enemy
+            app.PiranhaDelay += 1
+            if app.PiranhaDelay > 10:
+                app.PiranhaOverride = True
+                app.PiranhaThere = True
+        else:
+            app.PiranhaDelay = 0
+            app.PiranhaThere = False
+            app.PiranhaOverride = False
+
+    app.PiranhaTimer += 1
+    if app.PiranhaTimer > 50:
+        app.PiranhaThere = True
+    elif app.PiranhaTimer < 50 and app.PiranhaOverride == False:
+        app.PiranhaThere = False
+
+    if app.PiranhaTimer > 100:
+        app.PiranhaTimer = 0
+
+    if app.scrollY < - 200:
+        app.CharacterLives -= 20
+    
+    ##Mario Sprite Generation Commands
+    if app.isRunningForward == True and app.isJumping == False:
+        app.marioSpriteCounter1 = (1 + app.marioSpriteCounter1) % len(app.marioSprites1)
+    elif app.isRunningBackwards == True and app.isJumping == False:
+        app.marioSpriteCounter2 = (1 + app.marioSpriteCounter2) % len(app.marioSprites2)
+
+    if app.CharacterLives <= 0:
+        app.mode = 'gameOver'
+    
+    if app.scrollX > 15205:
+        app.mode = 'gameWon'
+    
+    if app.scrollX > 14710 and app.scrollX < 14730:
+        if app.scrollY >= 380:
+            app.totalScore += 2000
+        if app.scrollY >= 350 and app.scrollY < 380:
+            app.totalScore += 1750
+        if app.scrollY >= 300 and app.scrollY < 350:
+            app.totalScore += 1500
+        if app.scrollY >= 250 and app.scrollY < 300:
+            app.totalScore += 1250
+        if app.scrollY >= 200 and app.scrollY < 250:
+            app.totalScore += 1000
+        if app.scrollY >= 150 and app.scrollY < 200:
+            app.totalScore += 750
+        if app.scrollY >= 100 and app.scrollY < 150:
+            app.totalScore += 500
+        if app.scrollY >= 50 and app.scrollY < 100:
+            app.totalScore += 250
+    
+def midPoint(x1,x2):
+    return (x1 + x2) / 2
+
+def terrainGeneratorHelper(n, terrainStart, terrainEnd, List):
+    #Base case checks if you have enough positions to draw all the rectangles
+    if (terrainEnd - terrainStart <= (1000*n)/(n**2 - 1)) or (terrainEnd - terrainStart <= (1000*n)/(n**2)):
+        mp = midPoint(terrainStart,terrainEnd)
+        if (terrainStart,mp) not in List:
+            List.append((terrainStart,mp))
+        if (mp,terrainEnd) not in List:
+            List.append((mp,terrainEnd))
+    else:
+        mp = midPoint(terrainStart,terrainEnd)
+        terrainGeneratorHelper(n, terrainStart, mp, List)
+        terrainGeneratorHelper(n, mp, terrainEnd, List)
+    return List
+
+#Function to return the locations of the hills and their sizes
+def terrainGeneratorHelper2(L):
+    newList = []
+    stepHeight = 1
+    for distance in L:
+        x,y = distance
+        newList.append((x,y,stepHeight))
+        stepHeight += random.randint(-1,1)
+        if stepHeight < 1:
+            stepHeight = 1
+    return newList
+
+def terrainGeneration(range1, range2):
+    position = random.randint(range1, range2)
+    terrainStart, terrainEnd = position - 150, position + 150
+    numOfSteps = random.randint(5,9)
+    List = []
+    terrainPositions = terrainGeneratorHelper(numOfSteps, terrainStart, terrainEnd, List)
+    finalPositions = terrainGeneratorHelper2(terrainPositions)
+    return finalPositions
+
+#########################################
+#Level generation
+#########################################
+#Set the bottom right corner at 600 more than the width of the level that you want
+#Create blue background
+def gameMode_redrawAll(app, canvas):
+    # draw the player fixed to the center of the scrolled canvas
+    #Level Class
+    Level.drawBackground(app, canvas)
+    Level.drawWinLadder(app, canvas)
+    Level.drawCastle(app,canvas)
+    Level.drawCloud(app, canvas)
+    Level.drawRandomPlatforms(app,canvas)
+    Level.drawFlag(app,canvas)
+    Level.drawTerrain(app,canvas)
+
+    #Koopa Class
+    Koopa.drawKoopas(Koopa,app,canvas)
+    Koopa.koopaPositions(app)
+
+    #Goomba Class
+    Goomba.drawGoomba(Goomba,app,canvas)
+    Goomba.goombaPositions(app)
+
+    #Piranha Plant Class
+    if app.PiranhaTimer < 50 and app.PiranhaOverride == False:
+        PiranhaPlant.drawNoPiranha(PiranhaPlant,app,canvas)
+    if app.PiranhaTimer > 50 or (app.PiranhaTimer < 50 and app.PiranhaOverride == True):
+        PiranhaPlant.drawPiranhaPlant(PiranhaPlant,app,canvas)
+    PiranhaPlant.piranhaPositions(app)
+   
+    #Character Class
+    Character.drawCharacter(app,canvas)
+
+    canvas.create_text(app.width - 120, 20, text=f'Score = {app.totalScore}',
+                    fill='Black', font = 'Comic 28 bold')
+    canvas.create_text(100, 20, text=f'Health = {app.CharacterLives}',
+                    fill='Black', font = 'Comic 28 bold')
+    canvas.create_text(app.width/2, 20, text = 'World: 1-1',
+                    fill='Black', font = 'Comic 28 bold')
+
+#########################################
+#Final Level Mode
+#########################################
+
+#########################################
+#Final Level Classes
+#########################################
+class LevelFinal():
+    def __init__(self, app):
+        pass
+
+    def drawBackground(app, canvas):
+        canvas.create_image(app.width/2, app.height/2 + 200, image=ImageTk.PhotoImage(app.dungeonBackground)) #Dungeon Background
+        canvas.create_rectangle(0 - app.scrollX, app.height/1.2 + 30, app.gameLength - app.scrollX + 14400, 800, fill = 'gray', outline = 'gray') #Ground
+        canvas.create_rectangle(0 - app.scrollX, 0, app.gameLength - app.scrollX + 14400, 100, fill = 'gray', outline = 'gray') #Ceiling
+        canvas.create_rectangle(app.scrollX - 1000, app.height/1.2 + 30, app.gameLength - app.scrollX + 14400, 800, fill = 'gray', outline = 'gray') #Ground
+        canvas.create_rectangle(app.scrollX - 1000, 0, app.gameLength - app.scrollX + 14400, 100, fill = 'gray', outline = 'gray') #Ceiling
+        for i in range(len(app.randomGaps)):
+            canvas.create_image(((app.randomGaps[i] - app.scrollX + 5) + (app.randomGaps[i] + 150 - app.scrollX)) / 2, (app.height/1.2 + 50), image=ImageTk.PhotoImage(app.lavaCover)) 
+            canvas.create_rectangle(app.randomGaps[i] - app.scrollX, app.height/1.2 + 70, app.randomGaps[i] + 150 - app.scrollX, 800, fill = 'red', outline = 'red') #lava pit
+        canvas.create_image(15000 - app.scrollX, app.height/1.2 - 30, image=ImageTk.PhotoImage(app.BowsersPipe)) ###Bowsers Pipe
+    
+    def drawTerrain(app,canvas):
+            size = 50
+            for terrain in app.terrainPositions:
+                x1, x2, height = terrain
+                canvas.create_rectangle(x1 - app.scrollX, app.height/1.2 + 30 - (size*height), x2 - app.scrollX, app.height/1.2 + 30, fill = 'gray', outline = 'gray')
+
+class CharacterFinal():
+    def __init__(self,url,app):
+        pass
+   
+    def drawCharacter(app,canvas):
+        if app.isRunning == False and app.isJumping == False:
+            canvas.create_image(app.width/2, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.player))
+        elif app.isRunning == False and app.isJumping == True:
+            canvas.create_image(app.width/2, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump))
+        elif app.isRunning == False and app.isJumping == True:
+            canvas.create_image(app.width/2, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump2))
+        if app.isRunning == True:
+            if app.isRunningForward == True and app.isJumping == True:
+                canvas.create_image(app.width/2, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump))
+            elif app.isRunningForward == True and app.isJumping == False:
+                canvas.create_image(app.width/2, app.height/1.2 + 25 - app.scrollY, image=ImageTk.PhotoImage(app.marioSprites1[app.marioSpriteCounter1]))
+            elif app.isRunningBackwards == True and app.isJumping == True:
+                canvas.create_image(app.width/2, app.height/1.2 + 5 - app.scrollY, image=ImageTk.PhotoImage(app.playerJump2))
+            elif app.isRunningBackwards == True and app.isJumping == False:
+                canvas.create_image(app.width/2, app.height/1.2 + 25 - app.scrollY, image=ImageTk.PhotoImage(app.marioSprites2[app.marioSpriteCounter2]))
+
+    def gravity(app):
+        app.scrollY -= 20
+
+    def upwardsVelocity(app):
+        app.scrollY += app.upVelocityDecrease
+        if (app.PlatformHere == True) or (app.GapHere == True) or (app.HillHere == True):
+            app.upVelocityDecrease -= 7.5
+            if app.upVelocityDecrease < 0:
+                app.upVelocityDecrease = 0
+        else:
+            app.upVelocityDecrease -= 5
+            if app.upVelocityDecrease < 0:
+                app.upVelocityDecrease = 0
+
+    def downwardsVelocity(app):
+        app.scrollY -= 20
+   
+    def forwardsVelocity(app):
+        app.isRunningBackwards = False
+        app.isRunningForward = True
+        app.scrollX += 15
+   
+    def backwardsVelocity(app):
+        app.isRunningForward = False
+        app.isRunningBackwards = True
+        app.scrollX -= 15
+       
+    def gapGravity(app):
+        app.scrollY -= 10
+
+    def hillGravity(app, height):
+        if app.scrollY > height - 400:
+            app.scrollY -= 10
+
+    def beginningBoundary(app):
+        if app.scrollX < -550:
+            app.scrollX = -550
+
+    def groundCollisions(app):
+        if app.GapHere == False and app.scrollY < 0:
+            app.scrollY = 0
+
+    def thwompCollisions(app):
+        thwompLocations = Thwomp.thwompPositions(app)
+        for i in range(len(thwompLocations)):
+            if abs((thwompLocations[i] - 600)) < 75 and app.ThwompHeights[i] > app.currentHeight - 140:
+                app.CharacterLives -= 1
+    
+    def booCollisions(app):
+        booLocations = Boo.booPositions(app)
+        for i in range(len(booLocations)):
+            if abs((booLocations[i] - 600)) < 30 and abs(app.BooHeights[i] - app.currentHeight) < 20:
+                app.CharacterLives -= 1
+
+    def checkForObjects(self, app):            
+    ##Check for Platform
+        for x,y in app.PlatformPositions:
+            if (x - app.scrollX - 700 < 120) and (x - app.scrollX - 700 > - 300):
+                app.PlatformHere = True
+                #Apply gravity everywhere outside of the platform
+                if app.currentHeight > (y - 10) or app.currentHeight < (y - 40):
+                    app.PlatformHere = False
+
+    ##Check for Gaps
+        for x in app.randomGaps:
+            if x - app.scrollX - 600 < 10 and x - app.scrollX - 600 > - 140 and app.scrollY < 30:
+                app.GapHere = True
+                app.isRunning = False
+                self.gapGravity(app)
+
+    ##Check for Hills
+        for x1,x2,height in app.terrainPositions:
+            myPosition = app.scrollX + 600
+            if myPosition > x1 and myPosition < x2 and app.scrollY < 200:
+                app.HillHere = True
+                self.hillGravity(app,app.height/1.2 + 30 + (50*height) - 282)
+            if (myPosition > x1 and myPosition < x2):
+                if app.scrollY < (app.height/1.2 + 30 + (50*height) - 280 - 407.5):
+                    if app.currentMario == 'Small_Mario.gif':
+                        app.RightIsPossible = False
+                        app.scrollX = x1 - 600
+                    elif app.currentMario =='Small_Mario2.gif':
+                        app.LeftIsPossible = False
+                        app.scrollX = x2 - 600
+
+class Thwomp():
+    def __init__(self):
+        pass
+
+    def drawThwomp(self, app, canvas):
+        for i in range(len(app.ThwompPositions)):
+            canvas.create_image(app.ThwompPositions[i] - app.scrollX + app.ThwompPos, app.ThwompHeights[i], image=ImageTk.PhotoImage(app.Thwomp))    
+
+    def thwompPositions(app):
+        location = []
+        for x in (app.ThwompPositions):
+            location.append(x - app.scrollX + app.ThwompPos)
+        return location
+    
+    def thwompDrop(app, canvas):
+        for i in range(len(app.ThwompPositions)):
+            app.ThwompHeights[i] -= 30
+            canvas.create_image(app.ThwompPositions[i] - app.scrollX + app.ThwompPos, app.ThwompHeights[i], image=ImageTk.PhotoImage(app.Thwomp))  
+
+class Boo():
+    def __init__(self):
+        pass
+   
+    def drawBoo(self,app,canvas):
+        for i in range(len(app.BooPositions)):
+            if abs((app.scrollX + 600) - app.BooPositions[i]) < 250:
+                #Check Position
+                if app.currentMario == 'Small_Mario2.gif': 
+                    if (app.scrollX + 600) > app.BooPositions[i]:
+                        canvas.create_image(app.BooPositions[i] - app.scrollX + app.BooPos, app.BooHeights[i], image=ImageTk.PhotoImage(app.BooScaredRight))
+                    else:
+                        canvas.create_image(app.BooPositions[i] - app.scrollX + app.BooPos, app.BooHeights[i], image=ImageTk.PhotoImage(app.BooLeft))
+                if app.currentMario == 'Small_Mario.gif':
+                    if (app.scrollX + 600) > app.BooPositions[i]:
+                        canvas.create_image(app.BooPositions[i] - app.scrollX + app.BooPos, app.BooHeights[i], image=ImageTk.PhotoImage(app.BooRight))
+                    else:
+                        canvas.create_image(app.BooPositions[i] - app.scrollX + app.BooPos, app.BooHeights[i], image=ImageTk.PhotoImage(app.BooScaredLeft))
+            else:
+                canvas.create_image(app.BooPositions[i] - app.scrollX + app.BooPos, app.BooHeights[i], image=ImageTk.PhotoImage(app.Boo))
+
+    def booPositions(app):
+        location = []
+        for x in (app.BooPositions):
+            location.append((x - app.scrollX + app.BooPos))
+        return location
+
+def finalLevel_timerFired(app):
+    #Main Game Music was obtained from: https://downloads.khinsider.com/game-soundtracks/album/super-mario-bros
+    if app.FinalLevelSoundTimer == 0:
+        pygame.mixer.Channel(1).play(pygame.mixer.Sound("BowsersCastle.mp3"))
+        pygame.mixer.Channel(1).set_volume(1.5)
+        app.FinalLevelSoundTimer += 1
+    else:
+        pass
+
+    app.RightIsPossible = True
+    app.LeftIsPossible = True
+    app.playerTimer += 1
+    app.currentHeight = 680 - app.scrollY
+
+    ##Character Physics
+    if (app.PlatformHere == False) and (app.GapHere == False) and (app.HillHere == False):
+        CharacterFinal.gravity(app)
+    
+    if app.GapHere == True:
+        app.isJumping = False
+
+    #All Jumping Functions
+    if app.isJumping == True:
+        app.restrictJump = True
+    else:
+        app.restrictJump = False
+    if app.isJumping == True:
+        CharacterFinal.upwardsVelocity(app)
+        app.jumpDelay += 1
+        if app.jumpDelay == 10:
+            app.isJumping = False
+            app.isFalling = True
+            app.jumpDelay = 0
+            app.upVelocityDecrease = 60
+   
+    if app.isFalling == True:
+        app.fallingDelay += 1
+    if app.fallingDelay > 8:
+        app.isFalling = False
+        app.fallingDelay = 0
+
+    #All Running Functions
+    if app.isRunning == True:
+        if app.currentMario == 'Small_Mario.gif':
+            CharacterFinal.forwardsVelocity(app)
+        if app.currentMario == 'Small_Mario2.gif':
+            CharacterFinal.backwardsVelocity(app)
+    else:
+        app.isRunningForward = False
+        app.isRunningBackwards = False
+
+    CharacterFinal.groundCollisions(app)
+    CharacterFinal.beginningBoundary(app)
+    CharacterFinal.thwompCollisions(app)
+    CharacterFinal.booCollisions(app)
+    app.GapHere = False
+    app.PlatformHere = False
+    app.HillHere = False
+    CharacterFinal.checkForObjects(CharacterFinal, app)
+
+    #Thwomp AI
+    for i in range(len(app.ThwompPositions)):
+        if abs((app.scrollX + 600) - app.ThwompPositions[i]) < 100:
+            app.ThwompDown = True
+            if app.ThwompDown == True:
+                if app.ThwompHeights[i] > 590:
+                    app.ThwompDown = False
+                    app.ThwompUp = True
+                else:
+                    app.ThwompHeights[i] += 30
+            elif app.ThwompUp == True:
+                app.ThwompHeights[i] -= 30
+                if app.ThwompHeights[i] < 180:
+                    app.ThwompUp = False
+        elif app.ThwompHeights[i] > 180:
+            app.ThwompHeights[i] -= 30
+        elif app.ThwompHeights[i] <= 180:
+            pass 
+    
+    #Boo AI
+    for i in range(len(app.BooPositions)):
+        if abs((app.scrollX + 600) - app.BooPositions[i]) < 250: #They begin to chase you
+            if app.currentMario == 'Small_Mario2.gif': #If Mario is facing left
+                #If boo is to the left of mario, load up the frozen boo
+                #If boo is to the right of mario, load up the left facing boo and make it chase (Decrease Boo.X)
+                if (app.scrollX + 600) > app.BooPositions[i]:
+                    booImg = app.loadImage('BooRightScared.png')
+                    app.Boo = app.scaleImage(booImg,1)
+                elif (app.scrollX + 600) <= app.BooPositions[i]:
+                    booImg = app.loadImage('BooLeft.png')
+                    app.Boo = app.scaleImage(booImg,1)
+                    app.BooPositions[i] -= 5 #Chase in the X direction
+                    #Chase in the Y direction
+                    if app.currentHeight < app.BooHeights[i]:
+                        app.BooHeights[i] -= 5
+                    elif app.currentHeight >= app.BooHeights[i]:
+                        app.BooHeights[i] += 5
+            if app.currentMario == 'Small_Mario.gif': #If Mario is facing right
+                #If boo is to the right of mario, load up the frozen boo
+                #If boo is to the left of mario, load up the right facing boo and make it chase (Increase Boo.X)
+                if (app.scrollX + 600) > app.BooPositions[i]:
+                    booImg = app.loadImage('BooRight.png')
+                    app.Boo = app.scaleImage(booImg,1)
+                    app.BooPositions[i] += 5
+                    if app.currentHeight < app.BooHeights[i]:
+                        app.BooHeights[i] -= 5
+                    elif app.currentHeight >= app.BooHeights[i]:
+                        app.BooHeights[i] += 5
+                elif (app.scrollX + 600) <= app.BooPositions[i]:
+                    booImg = app.loadImage('BooLeftScared.png')
+                    app.Boo = app.scaleImage(booImg,1)
+
+    ##Mario Sprite Generation Commands
+    if app.isRunningForward == True and app.isJumping == False:
+        app.marioSpriteCounter1 = (1 + app.marioSpriteCounter1) % len(app.marioSprites1)
+    elif app.isRunningBackwards == True and app.isJumping == False:
+        app.marioSpriteCounter2 = (1 + app.marioSpriteCounter2) % len(app.marioSprites2)
+
+    #Final Wall Bounds
+    if app.scrollX > 14100:
+        app.scrollX = 14100
+    #Lava Bounds
+    if app.scrollY < -100:
+        app.CharacterLives -= 20
+    if app.scrollX > 14050:
+        app.scrollX = 0
+        app.isRunning = False
+        app.mode = 'bowserMode'
+    if app.CharacterLives <= 0:
+        app.mode = 'gameOver'   
+    if app.scrollX > 15205:
+        app.mode = 'gameWon'
+
+def finalLevel_keyPressed(app, event):
+    #Left and Right keys change mario's direction and the way he is drawn
+    if (event.key == "Left" and app.LeftIfPossible == True): #This controls how far the player moves on each key press
+        Mario = app.loadImage('Small_Mario2.gif')
+        app.currentMario = 'Small_Mario2.gif'
+        app.player = app.scaleImage(Mario, 1/15)
+        app.isRunning = True
+
+    if (event.key == "Left" and app.LeftIfPossible == False): #This controls how far the player moves on each key press
+        Mario = app.loadImage('Small_Mario2.gif')
+        app.currentMario = 'Small_Mario2.gif'
+        app.player = app.scaleImage(Mario, 1/15)
+        app.scrollX += 0
+
+    if (event.key == "Right" and app.RightIsPossible == True):
+        app.currentMario = 'Small_Mario.gif'
+        Mario = app.loadImage('Small_Mario.gif')
+        app.player = app.scaleImage(Mario, 1/15)
+        app.isRunning = True
+
+    if (event.key == "Right" and app.RightIsPossible == False):
+        app.currentMario = 'Small_Mario.gif'
+        Mario = app.loadImage('Small_Mario.gif')
+        app.player = app.scaleImage(Mario, 1/15)
+        app.scrollX += 0
+
+    if (event.key == "Down"):
+        app.isRunning = False
+        
+    if (event.key == "Up" and app.restrictJump == False and app.isFalling == False):
+        app.isJumping = True
+
+    if event.key == "s":
+        app.scrollX = 14000
+
+
+
+#########################################
+#Level Generation
+#########################################
+def finalLevel_redrawAll(app, canvas):
+    #Level Class
+    LevelFinal.drawBackground(app, canvas)
+    LevelFinal.drawTerrain(app,canvas)
+
+    #Thwomp Class
+    Thwomp.drawThwomp(Thwomp,app,canvas)
+
+    #Boo Class
+    Boo.drawBoo(Boo,app,canvas)
+
+    #Character Class
+    CharacterFinal.drawCharacter(app,canvas)
+
+    canvas.create_text(app.width - 120, 20, text=f'Score = {app.totalScore}',
+                    fill='Black', font = 'Comic 28 bold')
+    canvas.create_text(100, 20, text=f'Health = {app.CharacterLives}',
+                    fill='Black', font = 'Comic 28 bold')
+    canvas.create_text(app.width/2, 20, text = 'World: 1-1',
+                    fill='Black', font = 'Comic 28 bold')
+    canvas.create_text(14500 - app.scrollX, 300, text = 'Bowser Fight Ahead!',
+                    fill='White', font = 'Comic 28 bold')
+
+#########################################
+#Bowser Mode
+#########################################
+class Bowser():
+    def __init__(self):
+        pass
+
+    def drawBoswer(self,app,canvas):
+        for i in range(len(app.BowserPosition)):
+            canvas.create_image(app.BowserPosition[i], app.BowserHeight[i], image=ImageTk.PhotoImage(app.Bowser))
+    
+    def bowserPositions(app):
+        location = []
+        for x in (app.BowserPosition):
+            location.append((x - app.scrollX + app.BowserPos))
+        return location
+    
+    def shootFire(app,canvas):
+        if app.currentBowser == 'Right': #Shoot to the right
+            for i in range(30):
+                canvas.create_image(app.BowserPosition[0] + 80 + 50*i, app.PathToMarioY - 40, image=ImageTk.PhotoImage(app.Fire))
+        else: #Shoot to the left
+            for j in range(30):
+                canvas.create_image(app.BowserPosition[0] - 80 - 50*j, app.PathToMarioY - 40, image=ImageTk.PhotoImage(app.Fire))
+
+def bowserMode_timerFired(app):
+    app.RightIsPossible = True
+    app.LeftIsPossible = True
+    app.playerTimer += 1
+    app.currentHeight = 680 - app.scrollY
+
+    ##Character Physics
+    if (app.PlatformHere == False) and (app.GapHere == False) and (app.HillHere == False):
+        CharacterBowser.gravity(app)
+    
+    if app.GapHere == True:
+        app.isJumping = False
+
+    #All Jumping Functions
+    if app.isJumping == True:
+        app.restrictJump = True
+    else:
+        app.restrictJump = False
+    if app.isJumping == True:
+        CharacterBowser.upwardsVelocity(app)
+        app.jumpDelay += 1
+        if app.jumpDelay == 10:
+            app.isJumping = False
+            app.isFalling = True
+            app.jumpDelay = 0
+            app.upVelocityDecrease = 60
+   
+    if app.isFalling == True:
+        app.fallingDelay += 1
+    if app.fallingDelay > 8:
+        app.isFalling = False
+        app.fallingDelay = 0
+
+    #All Running Functions
+    if app.isRunning == True:
+        if app.currentMario == 'Small_Mario.gif':
+            Character.forwardsVelocity(app)
+        if app.currentMario == 'Small_Mario2.gif':
+            Character.backwardsVelocity(app)
+    else:
+        app.isRunningForward = False
+        app.isRunningBackwards = False
+
+    CharacterBowser.groundCollisions(app)
+    CharacterBowser.bowserCollisions(app)
+
+    app.BowserTimer += 3
+    if app.BowserTimer > 200 and app.BowserTimer < 250:
+        app.SecondBowserTimer += 5
+        app.BowserOverride = True
+        CharacterBowser.fireCollision(app)
+    elif app.BowserTimer >= 250:
+        app.SecondBowserTimer = 0
+        app.BowserOverride = False
+        app.PathToMarioX = []
+        app.PathToMarioY = 0
+        app.BowserHealth -= 25
+        app.BowserTimer = 0
+
+    #Bowser AI
+    if app.BowserOverride == True:
+        distanceToMeX = app.BowserPosition[0] - (app.scrollX - 80)
+        distanceToMeY = 70 #His head level is 70
+        if distanceToMeX > 0:
+            for i in range(0, distanceToMeX): #Increment both by the same amount
+                app.PathToMarioX.append(i)
+        else:
+            for i in range(distanceToMeX, 0): #Increment both by the same amount
+                app.PathToMarioX.append(i)
+        for j in range(0, distanceToMeY, math.floor(distanceToMeY/20)):
+            app.PathToMarioY = app.height/1.2
+    else:
+        app.FireChecker = 0
+        for i in range(len(app.BowserPosition)):
+            if (app.scrollX + 80) > app.BowserPosition[i]:
+                bowserImg = app.loadImage('BowserRight.png')
+                app.currentBowser = 'Right'
+                app.Bowser = app.scaleImage(bowserImg,1/3.7)
+                app.BowserPosition[i] += 5 
+            elif (app.scrollX + 80) <= app.BooPositions[i]:
+                bowserImg = app.loadImage('BowserLeft.png')
+                app.currentBowser = 'Left'
+                app.Bowser = app.scaleImage(bowserImg,1/3.7)
+                app.BowserPosition[i] -= 5 
+    
+    ##Mario Sprite Generation Commands
+    if app.isRunningForward == True and app.isJumping == False:
+        app.marioSpriteCounter1 = (1 + app.marioSpriteCounter1) % len(app.marioSprites1)
+    elif app.isRunningBackwards == True and app.isJumping == False:
+        app.marioSpriteCounter2 = (1 + app.marioSpriteCounter2) % len(app.marioSprites2)
+
+    if app.CharacterLives <= 0:
+        app.mode = 'gameOver'
+
+    if app.scrollX < -20:
+        app.scrollX = -20
+    elif app.scrollX > 1040:
+        app.scrollX = 1040
+
+    if app.BowserHealth <= 0:
+        app.totalScore += app.CharacterLives*10
+        app.mode = 'LevelClearMode'
+
+def bowserMode_keyPressed(app, event):
+    #Left and Right keys change mario's direction and the way he is drawn
+    if (event.key == "Left" and app.LeftIfPossible == True): #This controls how far the player moves on each key press
+        Mario = app.loadImage('Small_Mario2.gif')
+        app.currentMario = 'Small_Mario2.gif'
+        app.player = app.scaleImage(Mario, 1/15)
+        app.isRunning = True
+
+    if (event.key == "Left" and app.LeftIfPossible == False): #This controls how far the player moves on each key press
+        Mario = app.loadImage('Small_Mario2.gif')
+        app.currentMario = 'Small_Mario2.gif'
+        app.player = app.scaleImage(Mario, 1/15)
+        app.scrollX += 0
+
+    if (event.key == "Right" and app.RightIsPossible == True):
+        app.currentMario = 'Small_Mario.gif'
+        Mario = app.loadImage('Small_Mario.gif')
+        app.player = app.scaleImage(Mario, 1/15)
+        app.isRunning = True
+
+    if (event.key == "Right" and app.RightIsPossible == False):
+        app.currentMario = 'Small_Mario.gif'
+        Mario = app.loadImage('Small_Mario.gif')
+        app.player = app.scaleImage(Mario, 1/15)
+        app.scrollX += 0
+
+    if (event.key == "Down"):
+        app.isRunning = False
+        
+    if (event.key == "Up" and app.restrictJump == False and app.isFalling == False):
+        app.isJumping = True
+    
+    if (event.key == "j"):
+        app.BowserHealth = 1
+
+#########################################
+#Bowser Mode Level Generation
+#########################################
+def bowserMode_redrawAll(app, canvas):
+    #Level Class
+    Level.drawBowserBackground(app, canvas)
+
+    #Character Class
+    CharacterBowser.drawCharacter(app,canvas)
+
+    #Bowser Class
+    Bowser.drawBoswer(Bowser,app,canvas)
+    #Second Bowser Timer lets you have a slight delay so that it's possible to dodge
+    if app.BowserOverride == True and app.SecondBowserTimer > 30:
+        Bowser.shootFire(app,canvas)
+
+    canvas.create_text(app.width - 120, 20, text=f'Score = {app.totalScore}',
+                    fill='Black', font = 'Comic 28 bold')
+    canvas.create_text(100, 20, text=f'Health = {app.CharacterLives}',
+                    fill='Black', font = 'Comic 28 bold')
+    canvas.create_text(app.width/2, 20, text = 'World = Boss',
+                    fill='Black', font = 'Comic 28 bold')
+    if app.BowserHealth <= 500 and app.BowserHealth > 450:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.fullHealth))
+    elif app.BowserHealth <= 450 and app.BowserHealth > 400:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.NinetyPercent))
+    elif app.BowserHealth <= 400 and app.BowserHealth > 350:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.EightyPercent))
+    elif app.BowserHealth <= 350 and app.BowserHealth > 300:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.SeventyPercent))
+    elif app.BowserHealth <= 300 and app.BowserHealth > 250:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.SixtyPercent))
+    elif app.BowserHealth <= 250 and app.BowserHealth > 200:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.FiftyPercent))
+    elif app.BowserHealth <= 200 and app.BowserHealth > 150:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.FourtyPercent))
+    elif app.BowserHealth <= 150 and app.BowserHealth > 100:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.ThirtyPercent))
+    elif app.BowserHealth <= 100 and app.BowserHealth > 50:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.TwentyPercent))
+    elif app.BowserHealth <= 50 and app.BowserHealth > 0:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.TenPercent))
+    else:
+        canvas.create_image(app.width - 30, 215, image=ImageTk.PhotoImage(app.ZeroPercent))
+
+def main():
+    runApp(width=1200, height=800)
+
+if __name__ == '__main__':
+    main()
