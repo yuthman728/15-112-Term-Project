@@ -7,7 +7,7 @@ The project that I did was a side scroller, 2D Mario game that is very similar t
 
 **How to run:**
 
-The user will open the "SuperMarioSSFinal" file in the same location as the "cmu_112_graphics.py" file, which will both be in the main game folder. The user should then open up the Images/Music folder using the terminal (use "cd" command to get to Image/Music) and can then run the "SuperMarioSSFinal" file.
+The user will open the "SuperMarioSSFinal" file in the same location as the "cmu_112_graphics.py" file, which will both be in the main game folder. The user should then open up the Images/Music folder using the terminal (use "cd" command to get to 'Image and Music') and can then run the "SuperMarioSSFinal" file.
 
 **Libraries Needed:**
 
