@@ -9,6 +9,7 @@ The user will open the "SuperMarioSSFinal" file in the same location as the "cmu
 
 Libraries Needed:
 Pygame (https://www.pygame.org/download.shtml)
+
 cmu_112_graphics (https://www.cs.cmu.edu/~112/notes/notes-graphics.html)
 
 Shortcut Commands:
